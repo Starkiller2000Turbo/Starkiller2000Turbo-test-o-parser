@@ -1,5 +1,6 @@
 WORKDIR = ozon_parser
 MANAGE = python $(WORKDIR)/manage.py
+BASE_MANAGE = python manage.py
 
 default:
 	$(MANAGE) makemigrations
@@ -12,8 +13,19 @@ style:
 	flake8 $(WORKDIR)
 	mypy $(WORKDIR)
 
+pip:
+	python -m pip install --upgrade pip
+
+make env:
+	pip install -r DRF-requirements.txt
+
+project:
+	django-admin startproject $(name)
+
 app: 
-	$(MANAGE) startapp $(name)
+	cd $(WORKDIR); \
+	$(BASE_MANAGE) startapp $(name); \
+	cd ..
 
 migrations:
 	$(MANAGE) makemigrations
@@ -26,12 +38,3 @@ superuser:
 
 run:
 	$(MANAGE) runserver
-
-pip:
-	python -m pip install --upgrade pip
-
-make env:
-	pip install -r DRF-requirements.txt
-
-project:
-	django-admin startproject $(name)
