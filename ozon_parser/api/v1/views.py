@@ -1,15 +1,15 @@
 from django.http import HttpRequest, HttpResponse, JsonResponse
-from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
 
 from api.v1.forms import QueryForm
 from api.v1.serializers import ProductSerializer
+from api.v1.mixins import ListCreateRetrieveViewSet
 from core.constants import OZON_SELLER_1_PRODUCTS
 from core.utils import parse_ozon_seller
 from products.models import Product
 
 
-class ProductViewSet(viewsets.ModelViewSet):
+class ProductViewSet(ListCreateRetrieveViewSet):
     """Вьюсет, обрабатывающий запросы к продуктам."""
 
     queryset = Product.objects.all()

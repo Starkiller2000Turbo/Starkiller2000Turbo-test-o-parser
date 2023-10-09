@@ -17,7 +17,7 @@ pip:
 	python -m pip install --upgrade pip
 
 make env:
-	pip install -r DRF-requirements.txt
+	pip install -r requirements.txt
 
 project:
 	django-admin startproject $(name)
@@ -38,3 +38,6 @@ superuser:
 
 run:
 	$(MANAGE) runserver
+
+polling:
+	python $(WORKDIR)/start_polling.py

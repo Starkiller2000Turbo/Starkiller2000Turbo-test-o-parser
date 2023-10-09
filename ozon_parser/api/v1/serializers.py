@@ -15,7 +15,9 @@ class ProductSerializer(serializers.ModelSerializer):
             'image_url',
             'discount',
             'ozon_id',
+            'request_date',
         )
         extra_kwargs = {
             'ozon_id': {'write_only': True},
+            'request_date': {'write_only': True},
         }

@@ -20,6 +20,7 @@ class Product(models.Model):
         null=True,
     )
     ozon_id = models.IntegerField(verbose_name='id продукта', unique=True)
+    request_date = models.DateTimeField()
 
     class Meta:
         ordering = ('name', 'price')

@@ -16,6 +16,7 @@ class ProductAdmin(BaseAdmin):
         'image_url',
         'discount',
         'ozon_id',
+        'request_date',
     )
     readonly_fields = ('ozon_id',)
     search_fields = ('name',)
