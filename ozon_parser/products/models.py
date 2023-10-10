@@ -5,7 +5,7 @@ class Product(models.Model):
     """Модель продукта."""
 
     name = models.CharField(max_length=250, verbose_name='имя')
-    price = models.IntegerField(verbose_name='цена')
+    price = models.PositiveIntegerField(verbose_name='цена')
     description = models.TextField(
         max_length=5000,
         verbose_name='описание',

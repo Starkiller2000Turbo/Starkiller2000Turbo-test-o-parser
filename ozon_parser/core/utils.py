@@ -2,13 +2,13 @@ import logging
 import re
 import unicodedata
 from datetime import datetime
-from http import HTTPStatus
+from rest_framework import status
 from time import sleep
 from typing import Any, List, Optional
 
 import undetected_chromedriver as uc
 from bs4 import BeautifulSoup
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from fake_useragent import UserAgent
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
@@ -17,7 +17,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
-from api.v1.serializers import ProductSerializer
+from api.v1.serializers import ProductWriteSerializer, ProductReadSerializer
 from bot.bot import CHAT_ID, bot, sync_send_message
 from core.constants import OZON_PRODUCT_URL
 from products.models import Product
@@ -79,7 +79,7 @@ def get_html(
     driver.get(url)
     if css_selector:
         try:
-            wait_delay = 8
+            wait_delay = 10
             WebDriverWait(driver, wait_delay).until(
                 EC.presence_of_all_elements_located(
                     (By.CSS_SELECTOR, css_selector),
@@ -122,7 +122,7 @@ def count_pages(driver: uc.Chrome, url: str) -> int:
     Returns:
         Количество страниц в пагинаторе ozon.
     """
-    html = get_html(driver, url)
+    html = get_html(driver, url, 'div.wi4')
     pages_count = int(
         re.search(  # type: ignore[union-attr]
             r'"totalPages":(\d+)',
@@ -275,7 +275,7 @@ def parse_ozon_seller(url: str, products_count: int) -> HttpResponse:
     logging.info('Драйвер запущен')
     new_ids = get_new_products(driver, url, products_count)
     logging.info(f'Количество новых элементов: {len(new_ids)}')
-    saved_products = 0
+    saved_products = []
     for product_id in new_ids:
         product_html = get_html(
             driver,
@@ -283,7 +283,7 @@ def parse_ozon_seller(url: str, products_count: int) -> HttpResponse:
             'div.aby9',
         )
         product_soup = BeautifulSoup(product_html, 'lxml')
-        serializer = ProductSerializer(
+        serializer = ProductWriteSerializer(
             data={
                 'name': get_name(product_soup),
                 'image_url': get_image_url(product_soup),
@@ -297,17 +297,17 @@ def parse_ozon_seller(url: str, products_count: int) -> HttpResponse:
         if not serializer.is_valid():
             message = (
                 'Задача на парсинг товаров с сайта Ozon завершена преждевременно.'
-                f'Сохранены не все товары: {saved_products} товаров.'
+                f'Товары не сохранены.'
                 f'Были замечены следующие ошибки: {serializer.errors}'
             )
             sync_send_message(CHAT_ID, message)
-            logging.error(bot)
-            return HttpResponse(status=HTTPStatus.BAD_REQUEST)
-        serializer.save()
-        saved_products += 1
+            logging.error(message)
+            return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        saved_products.append(serializer)
     driver.close()
     driver.quit()
-    message = f'Задача на парсинг товаров с сайта Ozon завершена.\nСохранено: {products_count} товаров.'
+    created_products = Product.objects.bulk_create([Product(**serializer.validated_data) for serializer  in saved_products])
+    message = f'Задача на парсинг товаров с сайта Ozon завершена. Сохранено: {products_count} товаров.'
     sync_send_message(CHAT_ID, message)
     logging.info(message)
-    return HttpResponse(status=HTTPStatus.CREATED)
+    return JsonResponse(ProductReadSerializer(created_products, many=True).data, status=status.HTTP_201_CREATED)

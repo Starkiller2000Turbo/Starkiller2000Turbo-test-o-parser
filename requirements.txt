@@ -1,3 +1,4 @@
+anyio==4.0.0
 asgiref==3.7.2
 attrs==23.1.0
 beautifulsoup4==4.12.2
@@ -20,6 +21,8 @@ flake8-docstrings==1.7.0
 flake8-print==5.0.0
 flake8-quotes==3.3.2
 h11==0.14.0
+httpcore==0.18.0
+httpx==0.25.0
 idna==3.4
 importlib-resources==6.1.0
 inflection==0.5.1
@@ -39,6 +42,7 @@ pyflakes==3.1.0
 PySocks==1.7.1
 python-decouple==3.8
 python-dotenv==1.0.0
+python-telegram-bot==20.6
 pytz==2023.3.post1
 PyYAML==6.0.1
 requests==2.31.0
