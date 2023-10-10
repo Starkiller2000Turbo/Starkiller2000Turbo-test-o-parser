@@ -1,20 +1,20 @@
 import os
 
 import django
-from asgiref.sync import async_to_sync
 from telegram import Update
 from telegram.ext import Application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ozon_parser.settings')
-os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
-django.setup()
-
-from bot.bot import CHAT_ID, TOKEN, bot, sync_send_message
+from bot.bot import CHAT_ID, TOKEN, sync_send_message
 from bot.handlers import add_handlers
 from core.utils import logging
 
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ozon_parser.settings')
+os.environ['DJANGO_ALLOW_ASYNC_UNSAFE'] = 'true'
+django.setup()
 
-def start_pulling():
+
+def start_pulling() -> None:
+    """Запуск Telegram-бота."""
     logging.info('Started script')
     application = Application.builder().token(TOKEN).build()
     logging.info('created application')

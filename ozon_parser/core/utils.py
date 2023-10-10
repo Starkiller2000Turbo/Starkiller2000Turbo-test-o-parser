@@ -2,7 +2,6 @@ import logging
 import re
 import unicodedata
 from datetime import datetime
-from rest_framework import status
 from time import sleep
 from typing import Any, List, Optional
 
@@ -10,6 +9,7 @@ import undetected_chromedriver as uc
 from bs4 import BeautifulSoup
 from django.http import HttpResponse, JsonResponse
 from fake_useragent import UserAgent
+from rest_framework import status
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
@@ -17,9 +17,14 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
-from api.v1.serializers import ProductWriteSerializer, ProductReadSerializer
-from bot.bot import CHAT_ID, bot, sync_send_message
-from core.constants import OZON_PRODUCT_URL
+from api.v1.serializers import ProductReadSerializer, ProductWriteSerializer
+from bot.bot import CHAT_ID, sync_send_message
+from core.constants import (
+    DATA_TAGS,
+    OZON_PRODUCT_URL,
+    PRODUCT_PAGE_MARK,
+    SELLER_PAGE_MARK,
+)
 from products.models import Product
 
 logging.basicConfig(
@@ -76,6 +81,7 @@ def get_html(
     Returns:
         html страницы.
     """
+    sleep(1)
     driver.get(url)
     if css_selector:
         try:
@@ -86,14 +92,18 @@ def get_html(
                 ),
             )
             logging.info(f'Страница {url} загрузилась')
-            sleep_delay = 2
+            sleep_delay = 3
             sleep(sleep_delay)
-        except TimeoutException as ex:
-            message = f'Страница {url} не загрузилась\n' + str(ex)
-            # sync_send_message(CHAT_ID, message)
-            logging.error(message)
+        except TimeoutException:
+            message = (
+                f'Страница {url} загрузилась не до конца.\n'
+                'Возможно, будет необходимо вручную убедиться '
+                'в качестве записанной информации'
+            )
+            sync_send_message(CHAT_ID, message)
+            logging.warning(message)
     else:
-        delay = 7
+        delay = 5
         sleep(delay)
         logging.info(f'Страница {url} загружалась {delay} секунд')
     html = driver.page_source
@@ -122,7 +132,7 @@ def count_pages(driver: uc.Chrome, url: str) -> int:
     Returns:
         Количество страниц в пагинаторе ozon.
     """
-    html = get_html(driver, url, 'div.wi4')
+    html = get_html(driver, url, SELLER_PAGE_MARK)
     pages_count = int(
         re.search(  # type: ignore[union-attr]
             r'"totalPages":(\d+)',
@@ -131,6 +141,7 @@ def count_pages(driver: uc.Chrome, url: str) -> int:
         .group(1)
         .strip("'"),
     )
+    logging.info(f'Обнаружено страниц: {pages_count}')
     return pages_count
 
 
@@ -150,7 +161,7 @@ def get_new_products_on_page(
         Список новых продуктов
         Дополнительно - количество страниц: если count_pages = True.
     """
-    html = get_html(driver, url, 'div.wi4')
+    html = get_html(driver, url, SELLER_PAGE_MARK)
     soup = BeautifulSoup(html, 'lxml')
     ozon_ids = [
         int(
@@ -159,9 +170,12 @@ def get_new_products_on_page(
                 item.find('a')['href'],
             ).group(1),
         )
-        for item in soup.find('div', {'class': 'wi4'}).find_all(
-            'div',
-            {'class': 'u1i ui2'},
+        for item in soup.find(
+            DATA_TAGS['products']['tag'],
+            {'class': DATA_TAGS['products']['class']},
+        ).find_all(
+            DATA_TAGS['product']['tag'],
+            {'class': DATA_TAGS['product']['class']},
         )
     ]
     return list(filter(lambda id: id not in created_ids, ozon_ids))
@@ -183,7 +197,7 @@ def get_new_products(
         Список новых продуктов
     """
     created_ids = list(Product.objects.all().values_list('ozon_id', flat=True))
-    logging.info(f'Количество уже существующих товров: {len(created_ids)}')
+    logging.info(f'Количество уже существующих товаров: {len(created_ids)}')
     pages_count = count_pages(driver, url)
     new_ids = get_new_products_on_page(
         driver,
@@ -202,7 +216,7 @@ def get_new_products(
             )
             new_ids = extend_with_unique(new_ids, added_ids)
             logging.info(
-                f'Количество новых элементов на странице: {len(new_ids)}'
+                f'Количество новых элементов на странице: {len(new_ids)}',
             )
             if len(new_ids) >= products_count:
                 return new_ids[:products_count]
@@ -210,8 +224,19 @@ def get_new_products(
 
 
 def get_name(product_soup: BeautifulSoup) -> Optional[str]:
+    """Метод получения имени продукта.
+
+    Args:
+        product_soup: BeautifulSoup страницы продукта.
+
+    Returns:
+        Имя или None, если имя не найдено.
+    """
     try:
-        name = product_soup.find('h1', {'class': 'kz5'}).text
+        name = product_soup.find(
+            DATA_TAGS['name']['tag'],
+            {'class': DATA_TAGS['name']['class']},
+        ).text
     except AttributeError as err:
         logging.info(f'Не удалось получить имя: {err}')
         name = None
@@ -219,19 +244,41 @@ def get_name(product_soup: BeautifulSoup) -> Optional[str]:
 
 
 def get_image_url(product_soup: BeautifulSoup) -> Optional[str]:
+    """Метод получения адреса картинки продукта.
+
+    Args:
+        product_soup: BeautifulSoup страницы продукта.
+
+    Returns:
+        Адрес картинки или None, если адрес картинки не найден.
+    """
     try:
-        image = product_soup.find('div', {'class': 'jm2'}).find('img')
+        image = product_soup.find(
+            DATA_TAGS['image']['tag'],
+            {'class': DATA_TAGS['image']['class']},
+        ).find('img')
         image_url = image['src']
-    except AttributeError or TypeError as err:
+    except (AttributeError, TypeError) as err:
         logging.info(f'Не удалось получить адрес картинки: {err}')
         image_url = None
     return image_url
 
 
 def get_price(product_soup: BeautifulSoup) -> Optional[str]:
+    """Метод получения цены продукта.
+
+    Args:
+        product_soup: BeautifulSoup страницы продукта.
+
+    Returns:
+        Цену или None, если цена не найдена.
+    """
     try:
         price = ''.join(
-            product_soup.find('span', {'class': 'k1z'}).text.split()[:-1],
+            product_soup.find(
+                DATA_TAGS['price']['tag'],
+                {'class': DATA_TAGS['price']['class']},
+            ).text.split()[:-1],
         )
     except AttributeError as err:
         logging.info(f'Не удалось получить цену: {err}')
@@ -240,9 +287,22 @@ def get_price(product_soup: BeautifulSoup) -> Optional[str]:
 
 
 def get_discount(product_soup: BeautifulSoup) -> Optional[str]:
+    """Метод получения скидки продукта.
+
+    Args:
+        product_soup: BeautifulSoup страницы продукта.
+
+    Returns:
+        Скидку или None, если скидка не найдена.
+    """
     try:
         discount = (
-            product_soup.find('div', {'class': 'i2 j2 p9k'}).find('span').text
+            product_soup.find(
+                DATA_TAGS['discount']['tag'],
+                {'class': DATA_TAGS['discount']['class']},
+            )
+            .find('span')
+            .text
         )
     except AttributeError:
         discount = None
@@ -250,10 +310,21 @@ def get_discount(product_soup: BeautifulSoup) -> Optional[str]:
 
 
 def get_description(product_soup: BeautifulSoup) -> Optional[str]:
+    """Метод получения описания продукта.
+
+    Args:
+        product_soup: BeautifulSoup страницы продукта.
+
+    Returns:
+        Описание или None, если описание не найдено.
+    """
     try:
         description = unicodedata.normalize(
             'NFKD',
-            product_soup.find('div', {'class': 'ra-a1'}).text,
+            product_soup.find(
+                DATA_TAGS['description']['tag'],
+                {'class': DATA_TAGS['description']['class']},
+            ).text,
         )
     except AttributeError:
         description = None
@@ -274,13 +345,13 @@ def parse_ozon_seller(url: str, products_count: int) -> HttpResponse:
     driver = start_driver()
     logging.info('Драйвер запущен')
     new_ids = get_new_products(driver, url, products_count)
-    logging.info(f'Количество новых элементов: {len(new_ids)}')
+    logging.info(f'Выбрано новых элементов: {len(new_ids)}')
     saved_products = []
     for product_id in new_ids:
         product_html = get_html(
             driver,
             get_ozon_product_url(product_id),
-            'div.aby9',
+            PRODUCT_PAGE_MARK,
         )
         product_soup = BeautifulSoup(product_html, 'lxml')
         serializer = ProductWriteSerializer(
@@ -296,18 +367,34 @@ def parse_ozon_seller(url: str, products_count: int) -> HttpResponse:
         )
         if not serializer.is_valid():
             message = (
-                'Задача на парсинг товаров с сайта Ozon завершена преждевременно.'
+                'Задача на парсинг товаров с сайта Ozon '
+                'завершена преждевременно.'
                 f'Товары не сохранены.'
                 f'Были замечены следующие ошибки: {serializer.errors}'
             )
             sync_send_message(CHAT_ID, message)
             logging.error(message)
-            return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         saved_products.append(serializer)
     driver.close()
     driver.quit()
-    created_products = Product.objects.bulk_create([Product(**serializer.validated_data) for serializer  in saved_products])
-    message = f'Задача на парсинг товаров с сайта Ozon завершена. Сохранено: {products_count} товаров.'
+    created_products = Product.objects.bulk_create(
+        [
+            Product(**serializer.validated_data)
+            for serializer in saved_products
+        ],
+    )
+    message = (
+        'Задача на парсинг товаров с сайта Ozon завершена. '
+        f'Сохранено: {products_count} товаров.'
+    )
     sync_send_message(CHAT_ID, message)
     logging.info(message)
-    return JsonResponse(ProductReadSerializer(created_products, many=True).data, status=status.HTTP_201_CREATED)
+    return JsonResponse(
+        ProductReadSerializer(created_products, many=True).data,
+        status=status.HTTP_201_CREATED,
+        safe=False,
+    )

@@ -1,19 +1,22 @@
+from typing import Any
+
 from django.http import HttpRequest, HttpResponse, JsonResponse
+from drf_yasg import openapi
+from drf_yasg.utils import no_body, swagger_auto_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from drf_yasg.utils import swagger_auto_schema, no_body
-from drf_yasg import openapi
-from rest_framework.decorators import action
 
 from api.v1.forms import QueryForm
-from api.v1.serializers import QuerySerializer, ProductReadSerializer
 from api.v1.mixins import ListCreateRetrieveViewSet
+from api.v1.serializers import ProductReadSerializer, QuerySerializer
 from core.constants import OZON_SELLER_1_PRODUCTS
 from core.utils import parse_ozon_seller
 from products.models import Product
 
-
-created_response = openapi.Response('Created N objects', ProductReadSerializer(many=True))
+created_response = openapi.Response(
+    'Created N objects',
+    ProductReadSerializer(many=True),
+)
 
 error_reponse = openapi.Response(
     description="Didn't manage to create objects",
@@ -22,11 +25,12 @@ error_reponse = openapi.Response(
         properties={
             'field_name': openapi.Schema(
                 type=openapi.TYPE_ARRAY,
-                items=openapi.Items(type=openapi.TYPE_STRING)
+                items=openapi.Items(type=openapi.TYPE_STRING),
             ),
         },
     ),
 )
+
 
 class ProductViewSet(ListCreateRetrieveViewSet):
     """Вьюсет, обрабатывающий запросы к продуктам."""
@@ -34,31 +38,60 @@ class ProductViewSet(ListCreateRetrieveViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductReadSerializer
     permission_classes = [AllowAny]
-    
+
     @swagger_auto_schema(
-            tags=['PRODUCTS'],
-            operation_id='GET PRODUCTS',
-            operation_description='Get products list',
+        tags=['PRODUCTS'],
+        operation_id='GET PRODUCTS',
+        operation_description='Get products list',
     )
-    def list(self, request, *args, **kwargs):
+    def list(
+        self,
+        request: HttpRequest,
+        *args: Any,
+        **kwargs: Any,
+    ) -> HttpResponse:
+        """Метод GET для списка товаров.
+
+        Args:
+            request: передаваемый запрос.
+
+        Returns:
+            Response со списком товаров.
+        """
         return super().list(request, *args, **kwargs)
-    
+
     @swagger_auto_schema(
-            tags=['PRODUCTS'],
-            operation_id='RETRIEVE PRODUCT',
-    operation_description='Get product by id',
+        tags=['PRODUCTS'],
+        operation_id='RETRIEVE PRODUCT',
+        operation_description='Get product by id',
     )
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(
+        self,
+        request: HttpRequest,
+        *args: Any,
+        **kwargs: Any,
+    ) -> HttpResponse:
+        """Метод RETRIEVE для списка товаров.
+
+        Args:
+            request: передаваемый запрос.
+
+        Returns:
+            Response со списком товаров.
+        """
         return super().retrieve(request, *args, **kwargs)
 
     @swagger_auto_schema(
-            tags=['PRODUCTS'],
-            operation_id='CREATE PRODUCTS',
-    request_body=no_body,
-    operation_description='Start parsing from Ozon',
-    responses={status.HTTP_400_BAD_REQUEST: error_reponse,
-               status.HTTP_201_CREATED: created_response},
-    query_serializer=QuerySerializer
+        tags=['PRODUCTS'],
+        operation_id='CREATE PRODUCTS',
+        request_body=no_body,
+        operation_description='Start parsing from Ozon',
+        responses={
+            status.HTTP_400_BAD_REQUEST: error_reponse,
+            status.HTTP_201_CREATED: created_response,
+            status.HTTP_408_REQUEST_TIMEOUT: 'TimeoutException raised',
+        },
+        query_serializer=QuerySerializer,
     )
     def create(self, request: HttpRequest) -> HttpResponse:
         """Метод POST.

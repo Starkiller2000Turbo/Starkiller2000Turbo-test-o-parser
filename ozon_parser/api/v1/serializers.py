@@ -31,8 +31,13 @@ class ProductReadSerializer(serializers.ModelSerializer):
             'image_url',
             'discount',
         )
-    
+
+
 class QuerySerializer(serializers.Serializer):
     """Сериализатор для модели избранного."""
 
-    products_count = serializers.IntegerField(max_value=50, min_value=0, help_text='Amount of products for parsing (default 10)')
+    products_count = serializers.IntegerField(
+        max_value=50,
+        min_value=0,
+        help_text='Amount of products for parsing (default 10)',
+    )

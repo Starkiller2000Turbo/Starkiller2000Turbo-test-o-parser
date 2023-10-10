@@ -9,4 +9,5 @@ CHAT_ID = config('CHAT_ID', default='1')
 
 bot = Bot(TOKEN)
 
+
 sync_send_message = async_to_sync(bot.send_message)
