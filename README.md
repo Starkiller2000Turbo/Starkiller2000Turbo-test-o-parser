@@ -83,3 +83,4 @@ make
 - Logging
 - Selenium
 - BeautifulSoup
+- MySQL

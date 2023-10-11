@@ -9,7 +9,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ozon_parser.settings')
 os.environ['DJANGO_ALLOW_ASYNC_UNSAFE'] = 'true'
 django.setup()
 
-from bot.bot import CHAT_ID, TOKEN
+from bot.bot import TOKEN
 from bot.handlers import add_handlers
 from bot.utils import sync_send_message
 

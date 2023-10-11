@@ -1,4 +1,5 @@
-from asyncio import get_event_loop, ensure_future, new_event_loop, set_event_loop
+from asyncio import new_event_loop, set_event_loop
+
 from telegram.error import TelegramError
 
 from bot.bot import CHAT_ID, bot

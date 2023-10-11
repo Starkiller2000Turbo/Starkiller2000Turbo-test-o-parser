@@ -42,6 +42,7 @@ lxml==4.9.3
 mccabe==0.7.0
 mypy==1.5.1
 mypy-extensions==1.0.0
+mysqlclient==2.2.0
 outcome==1.2.0
 packaging==23.2
 pathspec==0.11.2
