@@ -147,4 +147,5 @@ dmypy.json
 .mypy_cache
 
 # Static
-.static/
+static/
+*.static/
