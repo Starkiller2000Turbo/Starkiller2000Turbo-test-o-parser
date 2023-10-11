@@ -16,8 +16,12 @@ style:
 pip:
 	python -m pip install --upgrade pip
 
-make env:
-	pip install -r requirements.txt
+venv:
+	python -m venv venv
+
+requirements: 
+	python -m pip install --upgrade pip; \
+	pip install -r requirements.txt; \
 
 project:
 	django-admin startproject $(name)
@@ -49,3 +53,6 @@ celery:
 
 redis:
 	redis-server $(path)
+
+static:
+	$(MANAGE) collectstatic

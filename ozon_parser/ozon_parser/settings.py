@@ -15,15 +15,17 @@ ALLOWED_HOSTS = config(
 
 # fmt: off
 INSTALLED_APPS = [
+    'adminlte3',
+    'adminlte3_theme',
+    'drf_yasg',
+    'rest_framework',
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    'drf_yasg',
-    'rest_framework',
 
     'api.apps.ApiConfig',
     'bot.apps.BotConfig',
@@ -101,12 +103,18 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+STATIC_ROOT = BASE_DIR / 'static'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REDIS_HOST = 'localhost'
+
 REDIS_PORT = '6379'
 
 CELERY_BROKER_URL = 'redis://' + REDIS_HOST + ':' + REDIS_PORT
+
 CELERY_BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
+
 CELERY_RESULT_BACKEND = 'redis://' + REDIS_HOST + ':' + REDIS_PORT
+
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True

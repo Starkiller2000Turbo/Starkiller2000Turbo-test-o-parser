@@ -8,7 +8,7 @@ cffi==1.16.0
 charset-normalizer==3.3.0
 click==8.1.7
 colorama==0.4.6
-Django==4.2.6
+Django==3.2.16
 django-stubs==4.2.4
 django-stubs-ext==4.2.2
 djangorestframework==3.14.0
