@@ -41,3 +41,11 @@ run:
 
 polling:
 	python $(WORKDIR)/start_polling.py
+
+celery:
+	cd $(WORKDIR); \
+	python -m celery -A ozon_parser worker -l info -P eventlet; \
+	cd ..
+
+redis:
+	redis-server $(path)

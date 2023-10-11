@@ -10,7 +10,7 @@ from api.v1.forms import QueryForm
 from api.v1.mixins import ListCreateRetrieveViewSet
 from api.v1.serializers import ProductReadSerializer, QuerySerializer
 from core.constants import OZON_SELLER_1_PRODUCTS
-from core.utils import parse_ozon_seller
+from core.tasks import parse_ozon_seller
 from products.models import Product
 
 created_response = openapi.Response(
@@ -86,11 +86,7 @@ class ProductViewSet(ListCreateRetrieveViewSet):
         operation_id='CREATE PRODUCTS',
         request_body=no_body,
         operation_description='Start parsing from Ozon',
-        responses={
-            status.HTTP_400_BAD_REQUEST: error_reponse,
-            status.HTTP_201_CREATED: created_response,
-            status.HTTP_408_REQUEST_TIMEOUT: 'TimeoutException raised',
-        },
+        responses={status.HTTP_200_OK: 'Parsing started'},
         query_serializer=QuerySerializer,
     )
     def create(self, request: HttpRequest) -> HttpResponse:
@@ -109,4 +105,5 @@ class ProductViewSet(ListCreateRetrieveViewSet):
                 return JsonResponse(query.errors)
         else:
             products_count = '10'
-        return parse_ozon_seller(OZON_SELLER_1_PRODUCTS, int(products_count))
+        parse_ozon_seller.delay(OZON_SELLER_1_PRODUCTS, int(products_count))
+        return HttpResponse(status=status.HTTP_200_OK)
